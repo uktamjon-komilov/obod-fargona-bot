@@ -1,8 +1,9 @@
 from django.conf import settings
 import requests as r
-from django.db.utils import IntegrityError
+from pprint import pprint
 
-from core.models import Profile
+
+from core.models import Appeal, Profile
 from core.utils import *
 
 
@@ -61,11 +62,64 @@ class TelegramService:
             message = self.callback_query.get("message", {})
             message_id = message.get("message_id", "")
         return message_id
+    
+
+    @property
+    def location(self):
+        location = self.message.get("location", None)
+        return location
+    
+    @property
+    def contact(self):
+        contact = self.message.get("contact", None)
+        return contact
+
+    
+    @property
+    def photo_id(self):
+        photo = self.message.get("photo", [])
+        if len(photo) >= 2:
+            return photo[1]["file_id"]
+        return None
 
     @property
     def profile(self):
         profile = self.get_or_create_profile()
         return profile
+    
+
+    @property
+    def appeal(self):
+        appeal = Appeal.objects.filter(
+            profile=self.profile,
+            is_submitted=False
+        ).first()
+        print(appeal)
+        if not appeal:
+            appeal = Appeal(profile=self.profile)
+            appeal.save()
+        print(appeal)
+        return appeal
+    
+
+    def save_appeal_location(self):
+        appeal = Appeal.objects.get(id=self.appeal.id)
+        appeal.longitude = self.location['longitude']
+        appeal.latitude = self.location['latitude']
+        appeal.save()
+    
+
+    def save_appeal_contact(self):
+        appeal = Appeal.objects.get(id=self.appeal.id)
+        appeal.phone = "+{}".format(self.contact['phone_number'])
+        appeal.save()
+    
+
+    def save_appeal_comment(self):
+        appeal = Appeal.objects.get(id=self.appeal.id)
+        appeal.comment = self.text
+        appeal.is_submitted = True
+        appeal.save()
         
 
     def get_or_create_profile(self):
@@ -139,12 +193,10 @@ class BotService:
             "chat_id": self.chat_id,
             "message_id": message_id
         }
-        print(DATA)
         response = r.post(
             URL,
             json=DATA
         )
-        print(response.content)
         if response.status_code == 200:
             return True
         return False
@@ -157,17 +209,15 @@ class BotService:
             "latitude": latitude,
             "longitude": longitude
         }
-        print(DATA)
         response = r.post(
             URL,
             json=DATA
         )
-        print(response.content)
         if response.status_code == 200:
             return True
         return False
 
-    def send_photo(self, image_url):
+    def send_photo(self, image_url, caption=None, chat_id=None):
         ACTION_VERB = "sendPhoto"
         URL = "{}{}".format(self.BASE_URL, ACTION_VERB)
         DATA = {
@@ -175,6 +225,10 @@ class BotService:
             "photo": image_url,
             "parse_mode": "HTML"
         }
+        if caption:
+            DATA["caption"] = caption
+        if chat_id:
+            DATA["chat_id"] = chat_id
         response = r.post(
             URL,
             json=DATA
@@ -185,7 +239,7 @@ class BotService:
         return False
     
 
-    def send_images(self, image_urls):
+    def send_images(self, image_urls, caption=None, chat_id=None):
         ACTION_VERB = "sendMediaGroup"
         URL = "{}{}".format(self.BASE_URL, ACTION_VERB)
         DATA = {
@@ -193,12 +247,15 @@ class BotService:
             "media": [
                 {
                     "type": "photo",
-                    "media": image_url
+                    "media": image_url,
+                    "parse_mode": "HTML"
                 } for image_url in image_urls
             ]
         }
-        from pprint import pprint
-        pprint(DATA)
+        if caption:
+            DATA["media"][0]["caption"] = caption
+        if chat_id:
+            DATA["chat_id"] = chat_id
         response = r.post(
             URL,
             json=DATA
@@ -206,4 +263,19 @@ class BotService:
         print(response.content)
         if response.status_code == 200:
             return True
+        return False
+    
+    
+    def get_file(self, file_id):
+        ACTION_VERB = "getFile"
+        URL = "{}{}".format(self.BASE_URL, ACTION_VERB)
+        DATA = {
+            "file_id": file_id,
+        }
+        response = r.post(
+            URL,
+            json=DATA
+        )
+        if response.status_code == 200:
+            return response.json()["result"]["file_path"]
         return False

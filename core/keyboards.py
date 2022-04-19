@@ -9,6 +9,14 @@ MAIN_MENU_KEYBOARD = [
     ]
 ]
 
+PICS_KEYBOARD = [
+    [
+        {
+            "text": UPLOAD_PICS_FINISHED
+        }
+    ]
+]
+
 LOCATION_KEYBOARD = [
     [
         {

@@ -25,22 +25,46 @@ class Profile(models.Model):
 
 
 class Appeal(models.Model):
+    class Meta:
+        verbose_name = "Murojaat"
+        verbose_name_plural = "Murojaatlar"
+    
     profile = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True)
-    phone = models.CharField(max_length=255)
+    phone = models.CharField(max_length=255, null=True, blank=True, verbose_name="Telefon raqami")
     longitude = models.FloatField(default=0.0)
     latitude = models.FloatField(default=0.0)
-    comment = models.TextField(null=True, blank=True)
+    comment = models.TextField(null=True, blank=True, verbose_name="Izoh")
     is_submitted = models.BooleanField(default=False)
 
-    google_maps_url = models.TextField()
+    google_maps_url = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.phone
+        return str(self.phone)
+    
+
+    def save(self, *args, **kwargs):
+        if self.is_submitted:
+            self.google_maps_url = "https://www.google.com/maps/@{},{},18z".format(
+                self.latitude,
+                self.longitude
+            )
+        super(Appeal, self).save(*args, **kwargs)
 
 
 class Photo(models.Model):
-    photo = models.ImageField()
-    appeal = models.ForeignKey(Appeal, on_delete=models.CASCADE)
+    class Meta:
+        verbose_name = "Rasm"
+        verbose_name_plural = "Rasmlar"
+    
+    photo = models.TextField()
+    appeal = models.ForeignKey(Appeal, on_delete=models.CASCADE, related_name="photos")
+    url = models.TextField(null=True, blank=True, editable=False)
 
     def __str__(self):
         return str(self.pk)
+    
+
+    def save(self, *args, **kwargs):
+        if self.photo:
+            self.url = "{}{}".format(settings.SITE_URL, self.photo)
+        super(Photo, self).save(*args, **kwargs)
