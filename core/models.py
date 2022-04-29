@@ -43,8 +43,8 @@ class Appeal(models.Model):
     
 
     def save(self, *args, **kwargs):
-        if self.is_submitted:
-            self.google_maps_url = "https://www.google.com/maps/@{},{},18z".format(
+        if self.is_submitted or self.comment:
+            self.google_maps_url = "https://www.google.com/maps/@{},{},23z".format(
                 self.latitude,
                 self.longitude
             )

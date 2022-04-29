@@ -118,6 +118,11 @@ class TelegramService:
     def save_appeal_comment(self):
         appeal = Appeal.objects.get(id=self.appeal.id)
         appeal.comment = self.text
+        appeal.save()
+    
+
+    def save_appeal_submitted(self):
+        appeal = Appeal.objects.get(id=self.appeal.id)
         appeal.is_submitted = True
         appeal.save()
         

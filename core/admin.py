@@ -76,6 +76,7 @@ class AppealAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Profile)
+admin.site.register(Photo)
 admin.site.register(Appeal, AppealAdmin)
 admin.site.unregister(User)
 admin.site.unregister(Group)

@@ -1,8 +1,6 @@
 from rest_framework.viewsets import GenericViewSet, mixins
 from rest_framework.response import Response
 from rest_framework import status
-from pprint import pprint
-from django.core import files
 
 from core.services import BotService, TelegramService
 from core.keyboards import *
@@ -47,7 +45,8 @@ class BotViewSet(
                 result = download_telegram_photo(path)
                 if isinstance(result, tuple):
                     media_path = result[1]
-                    photo = Photo(appeal=data_service.appeal)
+                    appeal = Appeal.objects.get(id=data_service.appeal.id)
+                    photo = Photo(appeal=appeal)
                     photo.photo = media_path
                     photo.save()
             else:
@@ -73,15 +72,21 @@ class BotViewSet(
             bot_service.send_message(SUCCESS, MAIN_MENU_KEYBOARD)
             data_service.save_appeal_comment()
 
-            print(data_service.appeal)
-            photos = data_service.appeal.photos.all()
-            print(photos)
-            if photos.count() > 1:
-                images = [photo.photo.url for photo in photos]
-                bot_service.send_images(images, caption="Salom", chat_id=settings.CHANNEL_ID)
-            elif photos.count() == 1:
-                bot_service.send_photo(photos.first().photo.url, caption="bitta", chat_id=settings.CHANNEL_ID)
+            try:
+                appeal = data_service.appeal
+                photos = Photo.objects.filter(appeal=appeal)
+
+                caption = f"""📞Telefon raqam: {appeal.phone}\n💬Izoh: {appeal.comment}\n📍Lokatsiya: {appeal.google_maps_url}"""
+
+                if photos.count() > 1:
+                    images = [photo.url for photo in photos]
+                    bot_service.send_images(images, caption=caption, chat_id=settings.CHANNEL_ID)
+                elif photos.count() == 1:
+                    bot_service.send_photo(photos.first().url, caption=caption, chat_id=settings.CHANNEL_ID)
+            except Exception as e:
+                print("error", e)
             
+            data_service.save_appeal_submitted()
             data_service.set_step("main-menu")
         
         return Response(status=status.HTTP_200_OK)
